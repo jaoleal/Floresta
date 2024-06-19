@@ -5,6 +5,7 @@
 
 extern crate alloc;
 
+use core::any::Any;
 use core::ffi::c_uint;
 use core::ops::Mul;
 
@@ -21,6 +22,7 @@ use bitcoin::Target;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
 use floresta_common::prelude::*;
+use log::info;
 use rustreexo::accumulator::node_hash::NodeHash;
 use rustreexo::accumulator::proof::Proof;
 use rustreexo::accumulator::stump::Stump;
@@ -133,10 +135,20 @@ impl Consensus {
                 return Err(BlockValidationErrors::FirstTxIsnNotCoinbase.into());
             }
             // Amount of all outputs
-            let output_value = transaction
-                .output
-                .iter()
-                .fold(0, |acc, tx| acc + tx.value.to_sat());
+            let output_value = transaction.output.iter().fold(0, |acc, tx| {
+                acc + {
+                    if tx.value.to_sat() > 0 {
+                        tx.value.to_sat()
+                    } else {
+                        info!(
+                            "Invalid output value: {:?}, aborting validation. on {:?}",
+                            tx.value,
+                            transaction.txid()
+                        );
+                        0
+                    }
+                }
+            });
             // Amount of all inputs
             let in_value = transaction.input.iter().fold(0, |acc, input| {
                 acc + utxos
@@ -265,5 +277,40 @@ impl Consensus {
         }
 
         false
+    }
+}
+#[cfg(test)]
+mod tests {
+    #[warn(unused_imports)]
+    use super::*;
+
+    #[allow(dead_code)]
+    fn get_invalid_tx() {
+        unimplemented!(
+            "
+        Implement function that returns only the invalid transactions from testdata/test_txs.json
+        "
+        )
+    }
+    #[allow(dead_code)]
+    fn get_valid_tx() {
+        unimplemented!(
+            "
+        Implement function that returns only the valid transactions from testdata/test_txs.json
+        "
+        )
+    }
+
+    #[test]
+    fn test_validate_transactions() {
+        unimplemented!("
+        Implement test that uses the verify_block_transactions function to accept valid transactions.
+        ")
+    }
+    #[test]
+    fn test_invalidate_transactions() {
+        unimplemented!("
+        Implement test that uses the verify_block_transactions function to deny invalid transactions.
+        ")
     }
 }
