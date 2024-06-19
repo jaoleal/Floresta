@@ -22,7 +22,6 @@ use bitcoin::Target;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
 use floresta_common::prelude::*;
-use log::info;
 use rustreexo::accumulator::node_hash::NodeHash;
 use rustreexo::accumulator::proof::Proof;
 use rustreexo::accumulator::stump::Stump;
@@ -124,8 +123,13 @@ impl Consensus {
             return Err(BlockValidationErrors::EmptyBlock.into());
         }
         let mut fee = 0;
+        let mut abort: bool = false;
         // Skip the coinbase tx
         for (n, transaction) in transactions.iter().enumerate() {
+            //We cannot break during value calculation, so we wait until the next iteration.
+            if abort {
+                break;
+            }
             // We don't need to verify the coinbase inputs, as it spends newly generated coins
             if transaction.is_coinbase() {
                 if n == 0 {
@@ -135,32 +139,44 @@ impl Consensus {
                 return Err(BlockValidationErrors::FirstTxIsnNotCoinbase.into());
             }
             // Amount of all outputs
-            let output_value = transaction.output.iter().fold(0, |acc, tx| {
-                acc + {
-                    if tx.value.to_sat() > 0 {
-                        tx.value.to_sat()
-                    } else {
-                        info!(
-                            "Invalid output value: {:?}, aborting validation. on {:?}",
-                            tx.value,
-                            transaction.txid()
-                        );
-                        0
-                    }
+            let mut output_value = 0;
+            for output in transaction.output.iter() {
+                if output.value.to_sat() > 0 {
+                    output_value += output.value.to_sat()
+                } else {
+                    return Err(BlockValidationErrors::InvalidTx(alloc::format!(
+                        "Invalid output: {:?}",
+                        transaction.txid()
+                    ))
+                    .into());
                 }
-            });
+            }
             // Amount of all inputs
-            let in_value = transaction.input.iter().fold(0, |acc, input| {
-                acc + utxos
-                    .get(&input.previous_output)
-                    .expect("We have all prevouts here")
-                    .value
-                    .to_sat()
-            });
+            let mut in_value = 0;
+            for input in transaction.input.iter() {
+                match utxos.get(&input.previous_output) {
+                    Some(prevout) => {
+                        in_value += prevout.value.to_sat();
+                        utxos.remove(&input.previous_output);
+                    }
+                    None => {
+                        return Err(BlockValidationErrors::InvalidTx(alloc::format!(
+                            "Invalid input: {:?}",
+                            input.previous_output
+                        ))
+                        .into());
+                    }
+                };
+            }
             // Value in should be greater or equal to value out. Otherwise, inflation.
             if output_value > in_value {
                 return Err(BlockValidationErrors::NotEnoughMoney.into());
             }
+
+            if output_value > 21_000_000 * 100_000_000 {
+                return Err(BlockValidationErrors::TooManyCoins.into());
+            }
+
             // Fee is the difference between inputs and outputs
             fee += in_value - output_value;
             // Verify the tx script

@@ -166,6 +166,7 @@ where
                     match e {
                         BlockValidationErrors::InvalidTx(_)
                         | BlockValidationErrors::NotEnoughPow
+                        | BlockValidationErrors::TooManyCoins
                         | BlockValidationErrors::BadMerkleRoot
                         | BlockValidationErrors::BadWitnessCommitment
                         | BlockValidationErrors::NotEnoughMoney

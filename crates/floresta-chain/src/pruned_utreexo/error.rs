@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use bitcoin::blockdata::script;
+use bitcoin::{blockdata::script, Block};
 #[cfg(feature = "cli-blockchain")]
 use btcd_rpc::error::UtreexodError;
 use floresta_common::impl_error_from;
@@ -28,6 +28,7 @@ pub enum BlockchainError {
 #[derive(Clone, Debug, PartialEq)]
 pub enum BlockValidationErrors {
     InvalidTx(String),
+    TooManyCoins,
     NotEnoughPow,
     BadMerkleRoot,
     BadWitnessCommitment,
@@ -44,6 +45,7 @@ pub enum BlockValidationErrors {
 impl Display for BlockValidationErrors {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            BlockValidationErrors::TooManyCoins => write!(f, "Moving more coins that exists"),
             BlockValidationErrors::InvalidTx(e) => {
                 write!(f, "This block contains an invalid transaction {}", e)
             }
