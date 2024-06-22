@@ -28,6 +28,7 @@ pub enum BlockchainError {
 #[derive(Clone, Debug, PartialEq)]
 pub enum BlockValidationErrors {
     InvalidTx(String),
+    InvalidCoinbase(String),
     TooManyCoins,
     NotEnoughPow,
     BadMerkleRoot,
@@ -45,6 +46,9 @@ pub enum BlockValidationErrors {
 impl Display for BlockValidationErrors {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            BlockValidationErrors::InvalidCoinbase(e) => {
+                write!(f, "Invalid coinbase: {:?}", e)
+            },
             BlockValidationErrors::TooManyCoins => write!(f, "Moving more coins that exists"),
             BlockValidationErrors::InvalidTx(e) => {
                 write!(f, "This block contains an invalid transaction {}", e)

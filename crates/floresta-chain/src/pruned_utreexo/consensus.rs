@@ -14,6 +14,7 @@ use bitcoin::consensus::Encodable;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::pow::U256;
+use bitcoin::transaction;
 use bitcoin::Block;
 use bitcoin::BlockHash;
 use bitcoin::OutPoint;
@@ -21,6 +22,7 @@ use bitcoin::ScriptBuf;
 use bitcoin::Target;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
+use bitcoin::Txid;
 use floresta_common::prelude::*;
 use rustreexo::accumulator::node_hash::NodeHash;
 use rustreexo::accumulator::proof::Proof;
@@ -112,6 +114,7 @@ impl Consensus {
     ///     - The transaction must have valid scripts
     #[allow(unused)]
     pub fn verify_block_transactions(
+        height: i32,
         mut utxos: HashMap<OutPoint, TxOut>,
         transactions: &[Transaction],
         subsidy: u64,
@@ -132,11 +135,31 @@ impl Consensus {
             }
             // We don't need to verify the coinbase inputs, as it spends newly generated coins
             if transaction.is_coinbase() {
-                if n == 0 {
-                    continue;
+                if n != 0 {
+                    // A block must contain only one coinbase, and it should be the fist thing inside it
+                    return Err(BlockValidationErrors::FirstTxIsnNotCoinbase.into());    
                 }
-                // A block must contain only one coinbase, and it should be the fist thing inside it
-                return Err(BlockValidationErrors::FirstTxIsnNotCoinbase.into());
+                //the prevout input of a coinbase must be all zeroes
+                if transaction.input[0].previous_output.txid != Txid::all_zeros() { return Err(BlockValidationErrors::InvalidCoinbase("Invalid coinbase txid".to_string()).into());}
+                let scriptsig =  transaction.input[0].script_sig.clone();
+                let scriptsigsize = scriptsig.clone().into_bytes().len();
+                if  scriptsigsize > 100 || scriptsigsize < 2 {
+                    //the scriptsig size must be between 2 and 100 bytes
+                    return Err(BlockValidationErrors::InvalidCoinbase("Invalid ScriptSig size".to_string()).into());
+                }
+                //according BIP 34, the scriptsig of a coinbase must be the height of the block;
+                //the first byte is the number of bytes of the height
+                let height_index = u8::from_le(scriptsig.as_script().as_bytes()[0]);
+                //gets the height in bytes (including sign)
+                let in_script_height = &scriptsig.as_script().as_bytes()[1..height_index as usize];
+                //height from le to i64
+                let in_script_height = i32::from_le_bytes(in_script_height.try_into().unwrap()); 
+                if in_script_height != height{
+                    return Err(BlockValidationErrors::InvalidCoinbase("Invalid declared Block Height in ScriptSig".to_string()).into());
+                };
+                continue;
+                
+                
             }
             // Amount of all outputs
             let mut output_value = 0;
@@ -161,6 +184,9 @@ impl Consensus {
                     }
                     None => {
                         return Err(BlockValidationErrors::InvalidTx(alloc::format!(
+                            //This is the case when the spender:
+                            // - Spends an UTXO that doesn't exist
+                            // - Spends an UTXO that was already spent
                             "Invalid input: {:?}",
                             input.previous_output
                         ))
