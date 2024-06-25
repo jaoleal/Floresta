@@ -124,6 +124,7 @@ impl Consensus {
         verify_script: bool,
         flags: c_uint,
     ) -> Result<(), BlockchainError> {
+        // TODO: RETURN A GENERIC WRAPPER TYPE.
         // Blocks must contain at least one transaction
         if transactions.is_empty() {
             return Err(BlockValidationErrors::EmptyBlock.into());
@@ -211,6 +212,9 @@ impl Consensus {
                         //the scriptsig size must be between 2 and 100 bytes unless is taproot
                         return Err(BlockValidationErrors::InvalidTx(alloc::format!("Scriptsig has more than 520 bytes on: {:?}", transaction.txid())).into());
                     }
+                    if script.count_sigops() > 80_000 {
+                        return Err(BlockValidationErrors::InvalidTx(alloc::format!("Transaction {:?} has more than 80_000 sigops", transaction.txid())).into());
+                    }
                 };
                 for out in transaction.output.iter() {
                     let script = out.script_pubkey.clone();
@@ -220,7 +224,10 @@ impl Consensus {
                         //the scriptsig size must be between 2 and 100 bytes unless is taproot
                         return Err(BlockValidationErrors::InvalidTx(alloc::format!("Scriptpubkey has more than 520 bytes on: {:?}", transaction.txid())).into());
                     }
-                };
+                    if script.count_sigops() > 80_000 {
+                        return Err(BlockValidationErrors::InvalidTx(alloc::format!("Transaction {:?} has more than 80_000 sigops", transaction.txid())).into());
+                }
+            };
             }
             //checks sequence and validates the locktime
             for input in transaction.input.iter(){
@@ -235,7 +242,8 @@ impl Consensus {
                     let timelock = input.sequence.clone().to_relative_lock_time().unwrap();
                     let heightlock = transaction.lock_time;
                     let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("valid time").as_secs();
-                    if !timelock.is_satisfied_by(bitcoin::relative::Height::from_height(height), bitcoin::relative::Time::from_consensus(now.try_into().unwrap()).unwrap()){
+                    let height: u16 = height.try_into().unwrap();
+                    if !timelock.is_satisfied_by(bitcoin::relative::Height::from(height), bitcoin::relative::Time::from_seconds_ceil(now.try_into().unwrap()).unwrap()){
                         return Err(BlockValidationErrors::InvalidTx(alloc::format!("Transaction {:?} is locked", transaction.txid())).into());
                     }
                 }
