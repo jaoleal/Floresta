@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use bitcoin::{blockdata::script, Block};
+use bitcoin::{blockdata::script};
 #[cfg(feature = "cli-blockchain")]
 use btcd_rpc::error::UtreexodError;
 use floresta_common::impl_error_from;
@@ -29,6 +29,7 @@ pub enum BlockchainError {
 pub enum BlockValidationErrors {
     InvalidTx(String),
     InvalidCoinbase(String),
+    BlockTooBig,
     TooManyCoins,
     NotEnoughPow,
     BadMerkleRoot,
@@ -46,6 +47,7 @@ pub enum BlockValidationErrors {
 impl Display for BlockValidationErrors {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            BlockValidationErrors::BlockTooBig => write!(f, "Block too big"),
             BlockValidationErrors::InvalidCoinbase(e) => {
                 write!(f, "Invalid coinbase: {:?}", e)
             },

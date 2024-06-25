@@ -130,6 +130,7 @@ impl Consensus {
             return Err(BlockValidationErrors::EmptyBlock.into());
         }
         let mut fee = 0;
+        let mut wu: u64 = 0;
         // Skip the coinbase tx
         for (n, transaction) in transactions.iter().enumerate() {
             //We cannot break during value calculation, so we wait until the next iteration.
@@ -261,6 +262,13 @@ impl Consensus {
                     .verify_with_flags(|outpoint| utxos.remove(outpoint), flags)
                     .map_err(|err| BlockValidationErrors::InvalidTx(alloc::format!("{:?}", err)))?;
             }
+            //checks vbytes validation
+            //After all the checks, we sum the transaction weight to the block weight
+            wu += transaction.weight().to_wu();
+        }
+        //checks if the block weight is fine.
+        if wu > 4_000_000 {
+            return Err(BlockValidationErrors::BlockTooBig.into());
         }
         // Checks if the miner isn't trying to create inflation
         if fee + subsidy
