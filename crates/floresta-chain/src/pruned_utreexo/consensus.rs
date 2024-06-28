@@ -214,7 +214,6 @@ impl Consensus {
     }
     fn validate_locktime(input: &TxIn,transaction: &Transaction, height: u32) -> Result<(), BlockchainError> {
         if input.sequence.is_height_locked() || input.sequence.enables_absolute_lock_time(){
-            let heightlock = transaction.lock_time;
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("valid time").as_secs();
             if transaction.is_absolute_timelock_satisfied(Height::from_consensus(height).unwrap(), Time::from_consensus(now.try_into().unwrap()).unwrap()){
                 return Err(BlockValidationErrors::InvalidTx(alloc::format!("Transaction {:?} is locked", transaction.txid())).into());
@@ -222,7 +221,6 @@ impl Consensus {
         }
         if input.sequence.is_relative_lock_time(){
             let timelock = input.sequence.clone().to_relative_lock_time().unwrap();
-            let heightlock = transaction.lock_time;
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("valid time").as_secs();
             let height: u16 = height.try_into().unwrap();
             if !timelock.is_satisfied_by(bitcoin::relative::Height::from(height), bitcoin::relative::Time::from_seconds_ceil(now.try_into().unwrap()).unwrap()){
@@ -383,11 +381,11 @@ mod tests {
 
     #[allow(dead_code)]
     fn get_invalid_tx() {
-        unimplemented!(
+            unimplemented!(
+                "
+            Implement function that returns only the invalid transactions from testdata/test_txs.json
             "
-        Implement function that returns only the invalid transactions from testdata/test_txs.json
-        "
-        )
+            )
     }
     #[allow(dead_code)]
     fn get_valid_tx() {
