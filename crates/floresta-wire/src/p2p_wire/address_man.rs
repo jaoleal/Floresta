@@ -534,7 +534,7 @@ mod test {
     }
     #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
     struct SeedAddress {
-        V4: Ipv4Addr,
+        v4: Ipv4Addr,
     }
 
     fn load_addresses_from_json(file_path: &str) -> io::Result<Vec<LocalAddress>> {
@@ -552,7 +552,7 @@ mod test {
                 _ => continue,
             };
 
-            let _address = AddrV2::Ipv4(seed.address.V4);
+            let _address = AddrV2::Ipv4(seed.address.v4);
 
             let local_address = LocalAddress {
                 address: _address,

@@ -20,6 +20,8 @@ use crate::Network;
 pub struct ChainParams {
     /// The network's first block, also called genesis block.
     pub genesis: Block,
+    /// Wheter or not to verify script. Requires "bitcoinconsensus" feature.
+    pub verify_script: bool,
     /// Whether or not we are allowed to mine blocks with the network's smallest diff, this
     /// is used in testnet, if a block takes more than 20 minutes to be mined
     pub pow_allow_min_diff: bool,
@@ -164,6 +166,7 @@ impl From<Network> for ChainParams {
             Network::Bitcoin => ChainParams {
                 genesis,
                 max_target,
+                verify_script: true,
                 pow_allow_min_diff: false,
                 pow_allow_no_retarget: false,
                 pow_target_spacing: 10 * 60, // One block every 600 seconds (10 minutes)
@@ -180,6 +183,7 @@ impl From<Network> for ChainParams {
             Network::Testnet => ChainParams {
                 genesis,
                 max_target,
+                verify_script: true,
                 pow_allow_min_diff: true,
                 pow_allow_no_retarget: false,
                 pow_target_spacing: 10 * 60, // One block every 600 seconds (10 minutes)
@@ -196,6 +200,7 @@ impl From<Network> for ChainParams {
             Network::Signet => ChainParams {
                 genesis,
                 max_target,
+                verify_script: true,
                 pow_allow_min_diff: false,
                 pow_allow_no_retarget: false,
                 pow_target_spacing: 10 * 60, // One block every 600 seconds (10 minutes)
@@ -212,6 +217,7 @@ impl From<Network> for ChainParams {
             Network::Regtest => ChainParams {
                 genesis,
                 max_target,
+                verify_script: false,
                 pow_allow_min_diff: false,
                 pow_allow_no_retarget: true,
                 pow_target_spacing: 10 * 60, // One block every 600 seconds (10 minutes)
