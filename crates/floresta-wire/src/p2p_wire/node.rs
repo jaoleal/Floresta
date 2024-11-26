@@ -308,6 +308,13 @@ where
 
         // ipv4 - it's hard to differentiate between ipv4 and hostname without an actual regex
         // simply try to parse it as an ip address and if it fails, assume it's a hostname
+        
+        // this breake the necessity of feature gate on windows
+        let mut address =  address;
+        if address == "" {
+            address = "localhost"
+        }
+        
         let mut split = address.split(':');
         let ip = split
             .next()
@@ -1107,9 +1114,8 @@ mod tests {
         );
 
         // Edge Cases
-        #[cfg(not(target_os = "windows"))]
-        check_address_resolving("", 8333, false, "Empty string address");
-        #[cfg(not(target_os = "windows"))]
+        // This could fail on windows but doesnt since inside `resolve_connect_host` we specificate empty addresses as localhost for all OS`s.
+        check_address_resolving("", 8333, true, "Empty string address");
         check_address_resolving(
             " 127.0.0.1:8333 ",
             8333,
