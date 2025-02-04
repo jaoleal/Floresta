@@ -100,7 +100,7 @@ pub trait FlorestaRPC {
     /// Stops the florestad process
     ///
     /// This can be used to gracefully stop the florestad process.
-    fn stop(&self) -> Result<String>;
+    fn stop(&self) -> Result<bool>;
     /// Tells florestad to connect with a peer
     ///
     /// You can use this to connect with a given node, providing it's IP address and port.
@@ -172,7 +172,7 @@ impl<T: JsonRPCClient> FlorestaRPC for T {
         self.call("addnode", &[Value::String(node)])
     }
 
-    fn stop(&self) -> Result<String> {
+    fn stop(&self) -> Result<bool> {
         self.call("stop", &[])
     }
 
