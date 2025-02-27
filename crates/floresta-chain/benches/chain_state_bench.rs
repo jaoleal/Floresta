@@ -59,7 +59,16 @@ fn decode_block_and_inputs(
         .iter()
         .skip(1) // Skip the coinbase transaction
         .flat_map(|tx| &tx.input)
-        .map(|txin| (txin.previous_output, stxos.remove(0).into()))
+        .map(|txin| {
+            (
+                txin.previous_output,
+                UtxoData {
+                    txout: stxos.remove(0),
+                    commited_height: 0,
+                    commited_time: 0,
+                },
+            )
+        })
         .collect();
 
     assert!(stxos.is_empty(), "Moved all stxos to the inputs map");

@@ -217,6 +217,7 @@ impl Consensus {
         height: u32,
         block_time: u32,
     ) -> Result<(), BlockValidationErrors> {
+        println!("txid: {}", transaction.compute_txid());
         let is_relative_locked =
             input.sequence.is_relative_lock_time() && transaction.version.0 >= 2;
 
@@ -232,6 +233,9 @@ impl Consensus {
                 Some(lock) => {
                     match (lock.is_block_height(), lock.is_block_time()) {
                         (true, false) => {
+                            println!("Validating a Block Lock");
+                            println!("txout: {:?}", prevout);
+                            println!("Sequence: {:?}", input.sequence);
                             // We are validating a relative block lock
 
                             let block_diff = bitcoin::relative::Height::from_height(

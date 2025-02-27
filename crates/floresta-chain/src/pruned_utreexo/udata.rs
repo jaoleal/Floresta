@@ -437,7 +437,8 @@ pub mod proof_util {
     #[allow(clippy::type_complexity)]
     pub fn process_proof<Chain: BlockchainInterface>(
         udata: &UData,
-        transactions: &[Transaction],
+        block: &Block,
+        height: u32,
         chain: &Chain,
     ) -> Result<(Proof, Vec<sha256::Hash>, HashMap<OutPoint, UtxoData>), Chain::Error> {
         let targets = udata.proof.targets.iter().map(|target| target.0).collect();
@@ -450,7 +451,7 @@ pub mod proof_util {
         let proof = Proof::new(targets, hashes);
         let mut hashes = Vec::new();
         let mut leaves_iter = udata.leaves.iter().cloned();
-        let mut tx_iter = transactions.iter();
+        let mut tx_iter = block.txdata.iter();
 
         let mut inputs = HashMap::new();
         tx_iter.next(); // Skip coinbase
@@ -465,8 +466,8 @@ pub mod proof_util {
                     },
                     UtxoData {
                         txout: out.clone(),
-                        commited_height: 0,
-                        commited_time: 0,
+                        commited_height: height,
+                        commited_time: block.header.time,
                     },
                 );
             }

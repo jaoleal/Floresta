@@ -177,8 +177,8 @@ where
 
         self.blocks.insert(block.block.block_hash(), (peer, block));
 
-        let next_block = self.chain.get_validation_index()? + 1;
-        let mut next_block = self.chain.get_block_hash(next_block)?;
+        let next_block_height = self.chain.get_validation_index()? + 1;
+        let mut next_block = self.chain.get_block_hash(next_block_height)?;
 
         while let Some((peer, block)) = self.blocks.remove(&next_block) {
             let start = Instant::now();
@@ -201,7 +201,8 @@ where
             debug!("processing block {}", block.block.block_hash(),);
             let (proof, del_hashes, inputs) = floresta_chain::proof_util::process_proof(
                 &block.udata.unwrap(),
-                &block.block.txdata,
+                &block.block,
+                next_block_height,
                 &self.chain,
             )?;
 

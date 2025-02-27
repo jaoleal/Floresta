@@ -422,29 +422,11 @@ pub mod utxo_data {
     /// A struct to hold unverified UTXOs and its metadata.
     pub struct UtxoData {
         /// The transaction output that created this UTXO.
-        pub(crate) txout: bitcoin::TxOut,
+        pub txout: bitcoin::TxOut,
         /// The lock value of the utxo.
-        pub(crate) commited_height: u32,
-        pub(crate) commited_time: u32,
+        pub commited_height: u32,
+        pub commited_time: u32,
     }
 
-    impl From<TxOut> for UtxoData {
-        fn from(txout: TxOut) -> Self {
-            UtxoData {
-                txout,
-                commited_height: 0,
-                commited_time: 0,
-            }
-        }
-    }
-    impl From<&TxOut> for UtxoData {
-        fn from(txout: &TxOut) -> Self {
-            UtxoData {
-                txout: txout.clone(),
-                commited_height: 0,
-                commited_time: 0,
-            }
-        }
-    }
     pub(crate) type UtxoMap = HashMap<OutPoint, UtxoData>;
 }

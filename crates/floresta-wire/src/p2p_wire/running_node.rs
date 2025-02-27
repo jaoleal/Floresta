@@ -669,8 +669,12 @@ where
                 return Ok(());
             };
 
-            let (proof, del_hashes, inputs) =
-                floresta_chain::proof_util::process_proof(udata, &block.block.txdata, &self.chain)?;
+            let (proof, del_hashes, inputs) = floresta_chain::proof_util::process_proof(
+                udata,
+                &block.block,
+                validation_index + 1,
+                &self.chain,
+            )?;
 
             if let Err(e) =
                 self.chain
