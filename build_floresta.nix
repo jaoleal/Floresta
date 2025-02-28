@@ -30,7 +30,7 @@ buildRustPackage {
     description = "A lightweight bitcoin full node";
     homepage = "https://github.com/vinteumorg/Floresta";
     license = licenses.mit;
-    maintainers = [ maintainers.Davidson maintainers.jaoleal ];
+    maintainers = [ maintainers.jaoleal ];
     platforms = [ "aarch64-linux" "x86_64-linux" "aarch64-darwin" "x86_64-darwin" ];
   };
 }

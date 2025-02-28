@@ -1,128 +1,113 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs = { nixpkgs.follows = "nixpkgs"; };
     };
     flake-utils.url = "github:numtide/flake-utils";
-    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, pre-commit-hooks, ... }:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, nixpkgs-unstable, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
 
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
+        pkgs = import nixpkgs { inherit system overlays; };
+        upkgs = import nixpkgs-unstable { inherit system overlays; };
 
         lib = pkgs.lib;
 
-        libsDarwin = with pkgs.darwin.apple_sdk.frameworks; lib.optionals (system == "x86_64-darwin" || system == "aarch64-darwin") [ Security ];
+        # libsDarwin are the necessary deps that are needed to build the floresta project for Darwin devices (?)
+        # TODO: is it ?
+        _libsDarwin = with pkgs.darwin.apple_sdk.frameworks;
+          lib.optionals
+          (system == "x86_64-darwin" || system == "aarch64-darwin")
+          [ Security ];
 
-        # This is the dev tools used while developing in Floresta.
-        devTools = with pkgs; [
-          rustup
-          just
-        ];
+        # This are deps needed to run and build rust projects.
+        _basicDeps = [ pkgs.openssl pkgs.pkg-config ];
 
-        buildInputs =
-          if system == "x86_64-darwin" || system == "aarch64-darwin" then [
-            pkgs.openssl
-            pkgs.pkg-config
-          ] ++ libsDarwin else [
-            pkgs.openssl
-            pkgs.pkg-config
-          ];
+        # Here we set system related deps, checking if we are building for a Darwin device
+        _buildInputs =
+          if system == "x86_64-darwin" || system == "aarch64-darwin" then
+            _basicDeps ++ _libsDarwin
+          else
+            _basicDeps;
 
-        florestaRust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-      in
-      with pkgs;
-      {
+        # This is the 1.74.1 rustup (and its components) toolchain from our `./rust-toolchain.toml`
+        _florestaRust =
+          pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+      in with pkgs; {
         checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              typos.enable = true;
+          pythonCheck = let
 
-              rustfmt = {
-                enable = true;
-                entry = "cargo +nightly fmt --all --check";
-              };
+            #floresta = self.packages.${system}.florestad;
 
-              clippy = {
-                enable = true;
-                entry = "cargo +nightly clippy --all-targets";
-              };
+            #utreexod = self.packages.${system}.utreexod;
 
-              nixpkgs-fmt.enable = true;
-            };
-          };
+            pythonDeps = with pkgs.python312Packages;
+              [ jsonrpc-base requests black pylint ] ++ [ pkgs.python312 ];
+
+          in pkgs.runCommand "Python Functional Tests Checks" rec {
+            src = "${./.}";
+            nativeBuildInputs = [ upkgs.uv ] ++ pythonDeps;
+
+            PATH = lib.makeBinPath nativeBuildInputs;
+            IS_RUNNING_BY_NIX = "true";
+            FLORESTA_PROJ_DIR = "${./.}";
+            UV_NO_CACHE = "true";
+
+          } (''
+            mkdir $out
+            ${builtins.readFile ./tests/run.sh}
+          '');
         };
 
-        packages = {
-          default = import ./build.nix {
+        packages = let
+          # Here we set system related deps. See _buildInputs above.
+          buildInputs = _buildInputs;
+
+          # This is the 1.74.1 rustup (and its components) toolchain from our `./rust-toolchain.toml`. See _florestaRust above.
+          florestaRust = _florestaRust;
+
+          utreexodGithubSrc = fetchFromGitHub {
+            owner = "utreexo";
+            repo = "utreexod";
+            rev = "v0.4.1";
+            sha256 = "sha256-oC+OqRuOp14qW2wrgmf4gss4g1DoaU4rXorlUDsAdRA=";
+          };
+        in rec {
+          florestad = import ./build_floresta.nix {
             inherit lib rustPlatform florestaRust buildInputs;
           };
+
+          utreexod = import ./build_utreexod.nix {
+            inherit pkgs;
+            src = utreexodGithubSrc;
+          };
+          default = florestad;
         };
 
         flake.overlays.default = (final: prev: {
-          floresta-node = self.packages.${final.system}.default;
+          floresta-overlay = self.packages.${final.system}.default;
         });
 
-        devShells = {
-          pythonTests =
-            let
-              _scriptSetup = ''
-                mkdir -p ./bin
+        devShells = let
+          # Here we set system related deps. See _buildInputs above.
+          buildInputs = _buildInputs;
 
-                cd bin
+          # This is the dev tools used while developing in Floresta. see _florestaRust above.
+          devTools = with pkgs; [ just _florestaRust ];
+        in {
+          default = mkShell {
+            inherit buildInputs;
+            nativeBuildInputs = devTools;
 
-                # Download and build utreexod
-                ls -la utreexod &>/dev/null
-
-                if [ $? -ne 0 ]
-                then
-                  	git clone https://github.com/utreexo/utreexod
-                fi
-                cd utreexod
-
-                go build . &>/dev/null
-                echo "All done!"
-              '';
-              _scriptRun = "poetry run poe tests";
-            in
-            pkgs.mkShell {
-              buildInputs = with pkgs; [
-                cargo
-                python312
-                poetry
-                go
-              ] ++ [ self.packages.${system}.default ];
-              shellHook = ''
-                ${_scriptSetup}
-                ${_scriptRun}
-
-                exit
-              '';
-            };
-          default =
-            let
-              _shellHook = (self.checks.${system}.pre-commit-check.shellHook or "");
-            in
-            mkShell {
-              inherit buildInputs;
-              nativeBuildInputs = devTools;
-
-              shellHook = ''
-                		${ _shellHook}
-                		echo "Floresta Nix-shell"
-                	'';
-            };
+            shellHook = "\n";
+          };
         };
       });
 }
