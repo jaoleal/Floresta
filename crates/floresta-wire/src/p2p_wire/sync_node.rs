@@ -127,6 +127,20 @@ where
                 break;
             }
 
+            let connected_peers = self
+                .peer_by_service
+                .get(&service_flags::UTREEXO.into())
+                .unwrap();
+
+            periodic_job!(
+                {
+                    println!("I am connected to this peers: {:?}", connected_peers);
+                },
+                self.last_connection,
+                TRY_NEW_CONNECTION,
+                SyncNode
+            );
+
             periodic_job!(
                 self.check_connections().await,
                 self.last_connection,
