@@ -26,6 +26,14 @@ ORIGINAL_PATH=$PATH
 export PATH="$FLORESTA_BIN_DIR:$UTREEXO_BIN_DIR:$PATH"
 
 # Actually runs the tests
-poetry run poe tests
+suites=("florestad" "floresta-cli")
+for suite in "${suites[@]}"; do
+    echo "======================================="
+    echo "Testing functional suite '$suite'"
+    echo "======================================="
+    echo ""
+    uv run tests/run_tests.py --test-suite "$suite"
+done
+
 # Restores the original PATH
 export PATH=$ORIGINAL_PATH
