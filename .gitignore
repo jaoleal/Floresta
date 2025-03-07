@@ -24,3 +24,6 @@ config.toml
 
 # uv python management
 .venv
+
+# tests pycache
+tests/**/__pycache__/*

@@ -258,41 +258,64 @@ cargo test --release
 
 Additional functional tests are available (minimum python version: 3.12).
 
-* Install [uv - a rust based python package and project manager](https://docs.astral.sh/uv/).
+* Recommended: install [uv: a rust-based python package and project manager](https://docs.astral.sh/uv/).
 
 * Configure an isolated environment:
 
-
 ```bash
-# Our tests are built with py3.12,
-# but you can try whichever version you wanna
+# create a virtual environment
+# (it's good to not messing up with your OS)
+uv venv
+
+# Alternatively, you can specify a python version (e.g, 3.12),
 uv venv --python 3.12
+
+# activate the python virtual environment
 source .venv/bin/activate
+
+# check if the python path was modified
+which python
 ```
 
 * Install module dependencies:
 
 ```bash
 uv pip install -r pyproject.toml
+
+# if you're a old-school pythonist,
+# install from requirements.txt
+uv pip install -r tests/requirements.txt
+
+# Alternatively, you can synchronize it
+uv sync
 ```
 
 * Format code
+```bash
+uv run black ./tests
 
+# if you want to just check
+uv run black --check --verbose ./tests
 ```
-uv tool run black ./tests
+
+
+* Lint code
+```bash
+uv run pylint ./tests
 ```
 
 * Run tests:
 
-```bash
-uv run ./tests/
-```
+Our tests are separated by "test suites". The current ones are:
 
-* Manual way without poetry: install dependencies and run the test script. This is discouraged since that can lead to inconsistences between different python versions:
+- example (folder `tests/example`);
+- florestad (folder `tests/florestad`);
+- floresta-cli (folder `tests/floresta-cli`).
+
+All files, inside in those folders, that ends with `*-test.py` will run through this command:
 
 ```bash
-pip3 install -r tests/requirements.txt
-python tests/run_tests.py
+uv run tests/run_tests.py --test-suite <suite>
 ```
 
 ## Running Benchmarks
