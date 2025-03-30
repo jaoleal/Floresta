@@ -45,7 +45,6 @@
         };
         backend = nixpkgs.lib.nixosSystem {
           modules = [
-            hardware
             ./src/backend.nix
             vscode-server.nixosModules.default
             ({ pkgs, ... }: {

@@ -1,12 +1,6 @@
 { pkgs, ... }: {
+ imports =  [ ../hardware-config/backend-hardware-configuration.nix ];
 
-  imports = [ ./hardware-configuration.nix ];
-
-  fileSystems."/mnt/bigd" = {
-    device = "/dev/sda1";
-    fsType = "ext4";
-    options = [ "defaults" "noatime" ];
-  };
   systemd.user.services = {
     florestad-master = {
       enable = true;
@@ -26,17 +20,13 @@
       serviceConfig = {
         Type = "simple";
         ExecStart =
-          "/home/jaoleal/utreexod/utreexod --utreexoproofindex --prune=0 -b /mnt/bigd/.utreexod/data";
+         ''
+	/home/jaoleal/utreexod/utreexod --utreexoproofindex --prune=0 --datadir="/mnt/bigd/.utreexod/data"
+	'';
       };
     };
   };
   boot.kernelPackages = pkgs.linuxPackages;
-  services.getty.autologinUser = "jaoleal";
-  environment = {
-    loginShellInit = ''
-      [[ "$(tty)" = "/dev/tty1" ]] && ./gs.sh
-    '';
-  };
   programs = {
     gamescope = {
       enable = true;
@@ -48,7 +38,6 @@
     };
   };
   services = {
-
     pipewire = {
       enable = true;
       alsa.enable = true;
@@ -95,15 +84,14 @@
       ];
     in
     with pkgs; [ ryujinx mangohud wget vim yubikey-manager usbutils ] ++ dev_deps;
-  hardware.graphics.enable = true;
-
+  
+hardware.graphics.enable = true;
   users.users.jaoleal = {
     isNormalUser = true;
     linger = true;
     description = "Joao Leal";
     extraGroups = [ "networkmanager" "wheel" ];
   };
-
   nixpkgs.config.allowUnfree = true;
   services.pcscd.enable = true;
   services.tailscale.enable = true;
@@ -135,12 +123,13 @@
     network.wait-online.enable = false;
   };
 
-  networking = { hostName = "sv"; networkmanager.enable = true; };
+  networking = { 
+	hostName = "sv"; 
+	networkmanager.enable = true; 
+	};
 
   networking.firewall = {
     enable = true;
-
-
     allowedTCPPorts = [ 22 47984 3389 47989 47990 48010 ];
     allowedUDPPortRanges = [
       {

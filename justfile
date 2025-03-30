@@ -34,6 +34,7 @@ _set-sysconf:
     cp /etc/nixos/src/hardware-configuration.nix ./src/.
     rm -rf /etc/nixos/*
     cp -r ./src /etc/nixos/
+    cp -r hardware-config/ /etc/nixos/
     cp flake.nix /etc/nixos/
     cp flake.lock /etc/nixos/
 
