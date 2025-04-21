@@ -61,6 +61,12 @@ build_utreexod() {
 	git clone https://github.com/utreexo/utreexod
 
 	cd utreexod
+
+	# check if UTREEXO_REVISION is set, if so checkout to it
+	if [ -n "$UTREEXO_REVISION" ]; then
+		git checkout $UTREEXO_REVISION
+	fi
+
 	go build -o $FLORESTA_TEMP_DIR/binaries/. .
 	rm -rf $FLORESTA_TEMP_DIR/binaries/build
 }
