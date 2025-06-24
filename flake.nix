@@ -163,6 +163,12 @@
               in
               import ./contrib/nix/build_floresta.nix { inherit packageName pkgs src; };
 
+            florestad-coverage =
+                let
+                  packageName = "florestad-coverage";
+                in
+                import ./contrib/nix/build_floresta.nix { inherit packageName pkgs src; };
+
             floresta-cli =
               let
                 packageName = "floresta-cli";
@@ -229,6 +235,36 @@
                     echo "run_test alias is set"
                   '';
               };
+              func-test-coverage-env =
+                let
+                  prepareHook = utils.prepareBinariesScript {
+                    binariesToLink = [
+                                       self.packages.${system}.florestad-coverage
+                                       utreexod-flake.packages.${system}.utreexod
+                                       pkgs.bitcoind
+                                     ];
+                    gitRev = self.rev or self.dirtyRev;
+                  };
+                  pythonDevTools = with pkgs; [
+                    uv
+                    python312
+                  ];
+                in
+                mkShell {
+                  packages = basicDevTools ++ pythonDevTools ++ [ grcov ];
+
+                  inputsFrom = testBinaries;
+
+                  shellHook =
+                    prepareHook
+                    + ''
+                      alias run_test="uv run tests/run_tests.py"
+                      echo "run_test is set."
+
+                      export LLVM_PROFILE_FILE="./contrib/coverage/florestadcoverage-%p-%m.profraw"
+                      echo "LLVM profile: $LLVM_PROFILE_FILE    "
+                    '';
+                };
           };
       }
     );

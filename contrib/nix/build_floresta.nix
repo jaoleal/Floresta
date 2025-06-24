@@ -67,6 +67,19 @@ let
         # We need to get a different toml for different packages
         cargoToml = builtins.fromTOML (builtins.readFile "${src}/florestad/Cargo.toml");
       }
+    else if packageName == "florestad-coverage" then
+        {
+          pname = "florestad";
+          cargoBuildFlags = [
+            "--bin"
+            "florestad "
+          ]; # flag for compiling the florestad binary with coverage enabled.
+
+          description = "Floresta Daemon (with Coverage enabled)";
+
+          # We need to get a different toml for different packages
+          cargoToml = builtins.fromTOML (builtins.readFile "${src}/florestad/Cargo.toml");
+        }
     else if packageName == "floresta-cli" then
       {
         pname = "${packageName}";
@@ -88,6 +101,8 @@ buildRustPackage {
   inherit buildInputs src;
 
   doCheck = false; # we need to disable testing, it needs special setup.
+
+    RUSTFLAGS = lib.optionalString (packageName == "florestad-coverage") "-C instrument-coverage";
 
   cargoLock = {
     lockFile = "${src}/Cargo.lock";
