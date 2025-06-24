@@ -162,6 +162,7 @@
                 packageName = "florestad";
               in
               import ./contrib/nix/build_floresta.nix { inherit packageName pkgs src; };
+
             floresta-cli =
               let
                 packageName = "floresta-cli";
@@ -194,6 +195,7 @@
             testBinaries = [
               self.packages.${system}.florestad
               utreexod-flake.packages.${system}.utreexod
+              pkgs.bitcoind
             ];
           in
           {
