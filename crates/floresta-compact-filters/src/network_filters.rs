@@ -1,6 +1,6 @@
 use bitcoin::bip158::BlockFilter;
 use bitcoin::BlockHash;
-use floresta_chain::pruned_utreexo::BlockchainInterface;
+use floresta_chain::pruned_utreexo::chain_interfaces::BlockchainInterface;
 
 use crate::IterableFilterStore;
 use crate::IterableFilterStoreError;

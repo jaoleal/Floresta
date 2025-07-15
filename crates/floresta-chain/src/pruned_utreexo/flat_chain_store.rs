@@ -93,7 +93,7 @@ use memmap2::MmapMut;
 use memmap2::MmapOptions;
 use xxhash_rust::xxh3;
 
-use super::ChainStore;
+use crate::pruned_utreexo::chain_interfaces::ChainStore;
 use crate::BestChain;
 use crate::DatabaseError;
 use crate::DiskBlockHeader;
@@ -1243,8 +1243,8 @@ mod tests {
     use super::FlatChainStore;
     use super::FlatChainstoreError;
     use super::Index;
-    use crate::pruned_utreexo::ChainStore;
-    use crate::pruned_utreexo::UpdatableChainstate;
+    use crate::pruned_utreexo::chain_interfaces::ChainStore;
+    use crate::pruned_utreexo::chain_interfaces::UpdatableChainstate;
     use crate::AssumeValidArg;
     use crate::BestChain;
     use crate::ChainState;

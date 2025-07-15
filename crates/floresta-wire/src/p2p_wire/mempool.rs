@@ -20,7 +20,7 @@ use bitcoin::TxMerkleNode;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 use floresta_chain::proof_util;
-use floresta_chain::pruned_utreexo::BlockchainInterface;
+use floresta_chain::pruned_utreexo::chain_interfaces::BlockchainInterface;
 use floresta_chain::CompactLeafData;
 use floresta_chain::LeafData;
 use rustreexo::accumulator::node_hash::BitcoinNodeHash;

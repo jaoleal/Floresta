@@ -4,7 +4,7 @@ mod tests_utils {
     use std::time::Duration;
 
     use bitcoin::Network;
-    use floresta_chain::pruned_utreexo::UpdatableChainstate;
+    use floresta_chain::pruned_utreexo::chain_interfaces::UpdatableChainstate;
     use floresta_chain::AssumeValidArg;
     use floresta_chain::ChainState;
     use floresta_chain::FlatChainStore;
@@ -91,7 +91,7 @@ mod tests {
     use std::collections::HashMap;
 
     use bitcoin::Network;
-    use floresta_chain::pruned_utreexo::BlockchainInterface;
+    use floresta_chain::pruned_utreexo::chain_interfaces::BlockchainInterface;
     use floresta_chain::UtreexoBlock;
 
     use crate::p2p_wire::tests::sync_node::tests_utils::setup_node;

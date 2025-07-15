@@ -10,10 +10,10 @@ use std::sync::Arc;
 
 use bitcoin::BlockHash;
 use bitcoin::Network;
-use floresta::chain::pruned_utreexo::BlockchainInterface;
 use floresta::chain::ChainState;
 use floresta::wire::mempool::Mempool;
 use floresta::wire::node::UtreexoNode;
+use floresta_chain::pruned_utreexo::chain_interfaces::BlockchainInterface;
 use floresta_chain::AssumeValidArg;
 use floresta_chain::FlatChainStore;
 use floresta_chain::FlatChainStoreConfig;

@@ -16,7 +16,7 @@ use rustreexo::accumulator::stump::Stump;
 use super::chain_state::BestChain;
 use super::chain_state::ChainState;
 use super::chainparams::ChainParams;
-use super::ChainStore;
+use crate::pruned_utreexo::chain_interfaces::ChainStore;
 use crate::pruned_utreexo::Box;
 use crate::AssumeValidArg;
 use crate::DatabaseError;

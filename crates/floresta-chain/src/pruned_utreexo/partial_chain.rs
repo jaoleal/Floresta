@@ -37,8 +37,8 @@ use super::chainparams::ChainParams;
 use super::consensus::Consensus;
 use super::error::BlockValidationErrors;
 use super::error::BlockchainError;
-use super::BlockchainInterface;
-use super::UpdatableChainstate;
+use crate::pruned_utreexo::chain_interfaces::BlockchainInterface;
+use crate::pruned_utreexo::chain_interfaces::UpdatableChainstate;
 use crate::pruned_utreexo::utxo_data::UtxoData;
 use crate::UtreexoBlock;
 
@@ -526,11 +526,11 @@ mod tests {
     use rustreexo::accumulator::stump::Stump;
 
     use super::PartialChainState;
+    use crate::pruned_utreexo::chain_interfaces::UpdatableChainstate;
     use crate::pruned_utreexo::chainparams::ChainParams;
     use crate::pruned_utreexo::consensus::Consensus;
     use crate::pruned_utreexo::error::BlockValidationErrors;
     use crate::pruned_utreexo::partial_chain::PartialChainStateInner;
-    use crate::pruned_utreexo::UpdatableChainstate;
     use crate::BlockchainError;
 
     #[test]
