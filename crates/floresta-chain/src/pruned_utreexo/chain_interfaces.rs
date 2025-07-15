@@ -46,6 +46,36 @@ pub trait ThreadSafeChain: ChainBackend + Sync + Send + 'static {}
 
 impl<T: ChainBackend + Sync + Send + 'static> ThreadSafeChain for T {}
 
+///
+pub trait SimpleBlockProvider {
+    /// So one thats implementing this trait can provide proper error handling.
+    type Error: Into<SimpleBlockProviderError>;
+
+    /// Tries to search for a block for a given `BlockIdentifier` whitout caring about
+    /// error handling, only if the backend can give the block or not.
+    fn simple_get_block_by(&self, by: BlockIdentifier) -> Option<Block>;
+
+    /// Tries to search for a block for a given `BlockIdentifier` with proper error handling.
+    fn get_block_by(&self, by: BlockIdentifier) -> Result<Block, Self::Error>;
+}
+
+pub enum SimpleBlockProviderError{
+
+}
+
+/// Describes all the ways this trait can find a block.
+enum BlockIdentifier {
+    /// Get the block that was mined around this timestamp, the block that 
+    /// has less absolute difference between its mining date and the given timestamp.
+    Timestamp(u32),
+
+    /// Get the block at this height.
+    Height(u32),
+
+    /// Get the block that this BlockHash represents
+    Hash(bitcoin::BlockHash)
+}
+
 /// This trait is the main interface between our blockchain backend and other services.
 /// It'll be useful for transitioning from rpc to a p2p based node
 pub trait BlockchainInterface {
@@ -112,6 +142,7 @@ pub trait BlockchainInterface {
     fn get_params(&self) -> bitcoin::params::Params;
     fn acc(&self) -> Stump;
 }
+
 /// [UpdatableChainstate] is a contract that a is expected from a chainstate
 /// implementation, that wishes to be updated. Using those methods, a backend like the p2p-node,
 /// can notify new blocks and transactions to a chainstate, allowing it to update it's state.
