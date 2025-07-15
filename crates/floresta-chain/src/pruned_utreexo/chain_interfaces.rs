@@ -28,7 +28,7 @@ use crate::BlockchainError;
 use crate::DatabaseError;
 use crate::DiskBlockHeader;
 use crate::UtreexoBlock;
-
+use blockid::BlockIdentifier;
 
 /// [`ChainBackend`] is a trait alias for the [`BlockchainInterface`] and [`UpdatableChainstate`] combo meant to be used
 /// to specify a generic blockchain backend.
@@ -45,6 +45,94 @@ impl<T: BlockchainInterface + UpdatableChainstate> ChainBackend for T {}
 pub trait ThreadSafeChain: ChainBackend + Sync + Send + 'static {}
 
 impl<T: ChainBackend + Sync + Send + 'static> ThreadSafeChain for T {}
+
+/// Top-level trait that builds on top of any blockchain backend and database that can provide a block for 
+/// consumers who want simplified getters that identify a block by a [`BlockIdentifier`]. 
+pub trait SimpleBlockProvider {
+    /// So one thats implementing this trait can provide proper error handling.
+    type Error: Into<SimpleBlockProviderError>;
+
+    /// Tries to search for a block for a given `BlockIdentifier` whitout caring about
+    /// error handling, only if the backend can give the block or not.
+    fn simple_get_block_by(&self, by: BlockIdentifier) -> Option<Block>;
+
+    /// Tries to search for a block for a given `BlockIdentifier` with proper error handling.
+    fn get_block_by(&self, by: BlockIdentifier) -> Result<Block, Self::Error>;
+}
+
+pub enum SimpleBlockProviderError{
+
+}
+
+mod blockid {
+    use bitcoin::BlockHash;
+
+    use crate::pruned_utreexo::chain_interfaces::BlockchainInterface;
+
+    /// The UNIX timestamp of the genesis block.
+    const GENESIS_TIMESTAMP: u32 = 1231006505;
+    
+    type Result<T> = core::result::Result<T, BIDError>;
+    
+/// Unified type to identify a block.
+pub struct BlockIdentifier {
+    /// Wheter this `BlockIdentifier` refers to a canonical block.
+    canonical: bool,
+    /// The value that well use to indexate the block.
+    identity: BlockIdentity,
+}
+
+/// Holds the value to indexate a block.
+pub enum BlockIdentity {
+    /// The height of a block.
+    Height(u32),
+
+    /// The time that well search for the block.
+    Timestamp(u32),
+
+    /// The hash of the block.
+    Hash(BlockHash),
+}
+
+/// Errors related to [`BlockIdentifier`] operations and methods.
+enum BIDError {
+    TimestampTooEarly,
+}
+
+impl BlockIdentifier {
+
+    pub fn from_timestamp(time: u32) -> Result<BlockIdentifier> {
+        if time < GENESIS_TIMESTAMP {
+            return Err(BIDError::TimestampTooEarly)
+        }
+        Ok(BlockIdentifier {
+            canonical: false,
+            identity: BlockIdentity::Timestamp(time)
+        })
+    }
+
+    pub fn from_height(height: u32) -> Result<BlockIdentifier> {
+        Ok(BlockIdentifier {
+            canonical: false,
+            identity: BlockIdentity::Height(height)
+        })
+    }
+
+    pub fn from_hash(hash: bitcoin::BlockHash) -> Result<BlockIdentifier> {
+        Ok(BlockIdentifier {
+            canonical: false,
+            identity: BlockIdentity::Hash(hash)
+        })
+    }
+
+    pub fn canonical_check<ChainSource: BlockchainInterface>(&self, chainsource: ChainSource) -> Result<BlockIdentifier> {
+        if self.canonical == true {
+            return Ok(*self)
+        };
+    }
+}
+
+}
 
 /// This trait is the main interface between our blockchain backend and other services.
 /// It'll be useful for transitioning from rpc to a p2p based node
@@ -112,6 +200,7 @@ pub trait BlockchainInterface {
     fn get_params(&self) -> bitcoin::params::Params;
     fn acc(&self) -> Stump;
 }
+
 /// [UpdatableChainstate] is a contract that a is expected from a chainstate
 /// implementation, that wishes to be updated. Using those methods, a backend like the p2p-node,
 /// can notify new blocks and transactions to a chainstate, allowing it to update it's state.
