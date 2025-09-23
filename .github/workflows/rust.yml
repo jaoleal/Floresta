@@ -33,7 +33,7 @@ jobs:
           cargo +nightly doc --workspace --no-deps --lib --all-features --document-private-items
 
       - name: Run cargo clippy
-        run: ./contrib/feature_matrix.sh clippy '-- -D warnings'
+        run: ./contrib/feature_matrix.sh clippy '-- -D warnings clippy::unnecessary_async'
         shell: bash   # Ensure the script runs using bash on all platforms
 
   cross-testing:
