@@ -2,8 +2,10 @@ import argparse
 import os
 import sys
 import time
+import importlib
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
+from test_framework import FlorestaTestFramework
 
 
 INFO_EMOJI = "ℹ️"
@@ -13,55 +15,33 @@ ALLDONE_EMOJI = "🎉"
 WARNING_EMOJI = "⚠️"
 RUNNING_EMOJI = "🏃"
 
+def import_test_class(module_path, class_name):
+    module = importlib.import_module(module_path)
+    return getattr(module, class_name)
 
-from test_framework import FlorestaTestFramework
-from floresta_cli.addnode_v1 import AddnodeTestV1
-from floresta_cli.addnode_v2 import AddnodeTestV2
-from floresta_cli.getbestblockhash import GetBestblockhashTest
-from floresta_cli.getblockcount import GetBlockCountTest
-from floresta_cli.uptime import UptimeTest
-from floresta_cli.stop import StopTest
-from floresta_cli.getrpcinfo import GetRpcInfoTest
-from floresta_cli.ping import PingTest
-from floresta_cli.getblockcount import GetBlockCountTest
-from floresta_cli.getblockhash import GetBlockhashTest
-from floresta_cli.getroots import GetRootsIDBLenZeroTest
-from floresta_cli.getblock import GetBlockTest
-from floresta_cli.getmemoryinfo import GetMemoryInfoTest
-from floresta_cli.getblockheader import GetBlockheaderHeightZeroTest
-from floresta_cli.getpeerinfo import GetPeerInfoTest
-from floresta_cli.getblockchaininfo import GetBlockchaininfoTest
-from florestad.connect import CliConnectTest
-from florestad.restart import TestRestart
-from florestad.tls import TestSslInitialization
-from florestad.reorg_chain import ChainReorgTest
-from florestad.tls_fail import TestSslFailInitialization    
-
-
-
-# Simple test registry - add more tests here
 TEST_REGISTRY = {
-    "addnodev2": AddnodeTestV2,#✅
-    "addnodev1": AddnodeTestV1,#✅
-    "reorg_chain":ChainReorgTest,#✅
-    "getbestblockhash": GetBestblockhashTest,#✅
-    "getblockcount": GetBlockCountTest,#✅
-    "uptime": UptimeTest,#✅
-    "restart": TestRestart,#✅
-    "connect": CliConnectTest,#✅
-    "stop": StopTest,#✅
-    "ping" : PingTest,#✅ 
-    "getrpcinfo": GetRpcInfoTest,#✅
-    "getblockhash": GetBlockhashTest,#✅
-    "tls": TestSslInitialization,#✅
-    "getroots": GetRootsIDBLenZeroTest,#✅
-    "getblock":GetBlockTest,#✅
-    "getmemoryinfo": GetMemoryInfoTest,#✅
-    "getblockheader": GetBlockheaderHeightZeroTest,#✅
-    "getpeerinfo":GetPeerInfoTest,#✅
-    "tls_fail":TestSslFailInitialization,#✅
-    "getblockchaininfo": GetBlockchaininfoTest,#✅
+    "addnodev2": import_test_class("floresta-cli.addnode-v2", "AddnodeTestV2"),
+    "addnodev1": import_test_class("floresta-cli.addnode-v1", "AddnodeTestV1"),
+    "reorg_chain": import_test_class("florestad.reorg-chain", "ChainReorgTest"),
+    "getbestblockhash": import_test_class("floresta-cli.getbestblockhash", "GetBestblockhashTest"),
+    "getblockcount": import_test_class("floresta-cli.getblockcount", "GetBlockCountTest"),
+    "uptime": import_test_class("floresta-cli.uptime", "UptimeTest"),
+    "restart": import_test_class("florestad.restart", "TestRestart"),
+    "connect": import_test_class("florestad.connect", "CliConnectTest"),
+    "stop": import_test_class("floresta-cli.stop", "StopTest"),
+    "ping": import_test_class("floresta-cli.ping", "PingTest"),
+    "getrpcinfo": import_test_class("floresta-cli.getrpcinfo", "GetRpcInfoTest"),
+    "getblockhash": import_test_class("floresta-cli.getblockhash", "GetBlockhashTest"),
+    "tls": import_test_class("florestad.tls", "TestSslInitialization"),
+    "getroots": import_test_class("floresta-cli.getroots", "GetRootsIDBLenZeroTest"),
+    "getblock": import_test_class("floresta-cli.getblock", "GetBlockTest"),
+    "getmemoryinfo": import_test_class("floresta-cli.getmemoryinfo", "GetMemoryInfoTest"),
+    "getblockheader": import_test_class("floresta-cli.getblockheader", "GetBlockheaderHeightZeroTest"),
+    "getpeerinfo": import_test_class("floresta-cli.getpeerinfo", "GetPeerInfoTest"),
+    "tls_fail": import_test_class("florestad.tls-fail", "TestSslFailInitialization"),
+    "getblockchaininfo": import_test_class("floresta-cli.getblockchaininfo", "GetBlockchaininfoTest"),
 }
+
 
 class TestResult:
     """Container for test execution results"""
