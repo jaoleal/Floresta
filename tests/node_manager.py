@@ -1,20 +1,17 @@
+#This file its a adptation of the original __init__.py from test_framework
+
 import os
-import re
 import sys
 import copy
-import time
 import random
 import socket
-import signal
-import contextlib
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Pattern
+from typing import List, Dict
 
 from test_framework.crypto.pkcs8 import (
     create_pkcs8_private_key,
     create_pkcs8_self_signed_certificate,
 )
-
 from test_framework.daemon.bitcoin import BitcoinDaemon
 from test_framework.daemon.floresta import FlorestaDaemon
 from test_framework.daemon.utreexo import UtreexoDaemon
@@ -47,7 +44,7 @@ class Node:
     def get_host(self) -> str:
         return self.rpc_config["host"]
 
-    def get_ports(self) -> int:
+    def get_ports(self) -> Dict[str, int]:
         return self.rpc_config["ports"]
 
     def get_port(self, port_type: str) -> int:
@@ -58,74 +55,19 @@ class Node:
         return self.rpc_config["ports"][port_type]
 
     def send_kill_signal(self, sigcode="SIGTERM"):
+        import signal
+        import contextlib
         with contextlib.suppress(ProcessLookupError):
             pid = self.daemon.process.pid
             os.kill(pid, getattr(signal, sigcode, signal.SIGTERM))
 
 
-class FlorestaTestMetaClass(type):
-    def __new__(mcs, clsname, bases, dct):
-        if not clsname == "FlorestaTestFramework":
-            if not ("run_test" in dct and "set_test_params" in dct):
-                raise TypeError(
-                    "FlorestaTestFramework subclasses must override 'run_test' and 'set_test_params'"
-                )
-            if "__init__" in dct or "main" in dct:
-                raise TypeError(
-                    "FlorestaTestFramework subclasses may not override '__init__' or 'main'"
-                )
-        return super().__new__(mcs, clsname, bases, dct)
-
-
-class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
-    class _AssertRaisesContext:
-        def __init__(self, test_framework, expected_exception):
-            self.test_framework = test_framework
-            self.expected_exception = expected_exception
-            self.exception = None
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            if exc_type is None:
-                self.test_framework.stop_all_nodes()
-                raise AssertionError(f"{self.expected_exception} was not raised")
-            if not issubclass(exc_type, self.expected_exception):
-                raise AssertionError(f"Expected {self.expected_exception} but got {exc_type}")
-            self.exception = exc_value
-            return True
-
+class NodeManager:
+    
     def __init__(self):
         self._nodes = []
-
-    def log(self, msg: str):
-        now = datetime.now(timezone.utc).replace(microsecond=0)
-        print(f"[{self.__class__.__name__} {now:%Y-%m-%d %H:%M:%S}] {msg}")
-
-    def main(self):
-        try:
-            self.set_test_params()
-            self.run_test()
-        except Exception as err:
-            processes = []
-            for node in self._nodes:
-                processes.append(str(node.daemon.process.pid))
-                if getattr(node, "rpc", None):
-                    node.rpc.stop()
-                    node.rpc.wait_for_connections(opened=False)
-                else:
-                    try:
-                        node.send_kill_signal("SIGTERM")
-                    except Exception:
-                        node.send_kill_signal("SIGKILL")
-            raise RuntimeError(f"Process with pids {', '.join(processes)} failed to start: {err}") from err
-
-    def set_test_params(self):
-        raise NotImplementedError
-
-    def run_test(self):
-        raise NotImplementedError
+        self._temp_dir = self.get_integration_test_dir()
+        self._port_counter = 0
 
     @staticmethod
     def get_integration_test_dir():
@@ -133,14 +75,9 @@ class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
             raise RuntimeError("FLORESTA_TEMP_DIR not set")
         return os.getenv("FLORESTA_TEMP_DIR")
 
-    @staticmethod
-    def create_data_dirs(data_dir: str, base_name: str, nodes: int) -> list[str]:
-        paths = []
-        for i in range(nodes):
-            p = os.path.join(data_dir, "data", base_name, f"node-{i}")
-            os.makedirs(p, exist_ok=True)
-            paths.append(p)
-        return paths
+    def log(self, msg: str):
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        print(f"[NodeManager {now:%Y-%m-%d %H:%M:%S}] {msg}")
 
     @staticmethod
     def get_available_random_port(start: int, end: int = 65535):
@@ -150,14 +87,8 @@ class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
                 if s.connect_ex(("127.0.0.1", port)) != 0:
                     return port
 
-    def get_test_log_path(self) -> str:
-        tempdir = str(self.get_integration_test_dir())
-        filename = os.path.basename(sys.modules[self.__class__.__module__].__file__)
-        filename = filename.replace(".py", "")
-        return os.path.join(tempdir, "logs", f"{filename}.log")
-
     def create_tls_key_cert(self) -> tuple[str, str]:
-        tls_rel_path = os.path.join(self.get_integration_test_dir(), "data", "tls")
+        tls_rel_path = os.path.join(self._temp_dir, "data", "tls")
         tls_path = os.path.normpath(os.path.abspath(tls_rel_path))
         os.makedirs(tls_path, exist_ok=True)
 
@@ -292,11 +223,15 @@ class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
         daemon.add_daemon_settings(default_args + extra_args)
         return daemon, ports
 
-    def add_node(self, extra_args: List[str] = [], variant: str = "florestad", tls: bool = False) -> Node:
-        port_index = len(self._nodes)
-        tempdir = str(self.get_integration_test_dir())
+    def create_node(self, extra_args: List[str] = None, variant: str = "florestad", tls: bool = False, testname: str = "pytest") -> Node:
+        if extra_args is None:
+            extra_args = []
+            
+        port_index = self._port_counter
+        self._port_counter += 1
+        
+        tempdir = self._temp_dir
         targetdir = os.path.join(tempdir, "binaries")
-        testname = self.__class__.__name__.lower()
     
         if variant == "florestad":
             daemon, ports = self.setup_florestad_daemon(targetdir, tempdir, testname, extra_args, tls, port_index)
@@ -315,12 +250,7 @@ class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
         self._nodes.append(node)
         return node
 
-    def get_node(self, index: int) -> Node:
-        if index < 0 or index >= len(self._nodes):
-            raise IndexError(f"Node {index} not found")
-        return self._nodes[index]
-
-    def run_node(self, node: Node, timeout: int = 180):
+    def start_node(self, node: Node, timeout: int = 180):
         node.daemon.start()
         
         if node.variant == "florestad":
@@ -333,55 +263,19 @@ class FlorestaTestFramework(metaclass=FlorestaTestMetaClass):
         node.rpc.wait_for_connections(opened=True, timeout=timeout)
         self.log(f"Node '{node.variant}' started on ports: {node.rpc_config['ports']}")
 
-    def stop_node(self, index: int):
-        return self.get_node(index).stop()
-
-    def stop(self):
-        for node in self._nodes:
-            node.stop()
-
     def stop_all_nodes(self):
-        self.stop()
+        for node in self._nodes:
+            try:
+                node.stop()
+            except Exception as e:
+                self.log(f"Error stopping node {node.variant}: {e}")
+                # Try force kill
+                try:
+                    node.send_kill_signal("SIGKILL")
+                except Exception:
+                    pass
+        self._nodes.clear()
 
-    def assertTrue(self, condition: bool):
-        if not condition:
-            self.stop()
-            raise AssertionError(f"Expected: True, Got: {condition}")
-
-    def assertFalse(self, condition: bool):
-        if condition:
-            self.stop()
-            raise AssertionError(f"Expected: False, Got: {condition}")
-
-    def assertIsNone(self, thing: Any):
-        if thing is not None:
-            self.stop()
-            raise AssertionError(f"Expected: None, Got: {thing}")
-
-    def assertIsSome(self, thing: Any):
-        if thing is None:
-            self.stop()
-            raise AssertionError("Expected: not None")
-
-    def assertEqual(self, condition: Any, expected: Any):
-        if condition != expected:
-            self.stop()
-            raise AssertionError(f"Expected: {expected}, Got: {condition}")
-
-    def assertNotEqual(self, condition: Any, expected: Any):
-        if condition == expected:
-            self.stop()
-            raise AssertionError(f"Expected: not {expected}, Got: {condition}")
-
-    def assertIn(self, element: Any, container: List[Any]):
-        if element not in container:
-            self.stop()
-            raise AssertionError(f"Expected {element} in {container}")
-
-    def assertMatch(self, actual: Any, pattern: Pattern):
-        if not re.fullmatch(pattern, actual):
-            self.stop()
-            raise AssertionError(f"Pattern {pattern} not matched in {actual}")
-
-    def assertRaises(self, expected_exception):
-        return self._AssertRaisesContext(self, expected_exception)
+    def cleanup(self):
+        self.stop_all_nodes()
+        self._port_counter = 0
