@@ -1,14 +1,14 @@
 # List the available commands
 default:
-  @just --list
+    @just --list
 
 # Checks whether a command is available.
 [group('Utilitty')]
 check-command cmd recipe="check-command" link_to_package="":
-    @if ! command -v "{{cmd}}" >/dev/null; then \
-        echo "Command '{{cmd}}' is not available, but 'just {{recipe}}' requires it." >&2; \
-        if [ -n "{{link_to_package}}" ]; then \
-            echo "This might help you: {{link_to_package}}" >&2; \
+    @if ! command -v "{{ cmd }}" >/dev/null; then \
+        echo "Command '{{ cmd }}' is not available, but 'just {{ recipe }}' requires it." >&2; \
+        if [ -n "{{ link_to_package }}" ]; then \
+            echo "This might help you: {{ link_to_package }}" >&2; \
         fi; \
         exit 1; \
     fi
@@ -37,7 +37,7 @@ lint-features arg="":
     @just doc-check
 
     cargo install cargo-hack --locked
-    ./contrib/feature_matrix.sh clippy '{{arg}}'
+    ./contrib/feature_matrix.sh clippy '{{ arg }}'
 
     @just spell-check
     @just test-functional-uv-fmt
@@ -80,39 +80,39 @@ doc-check:
 
 # Must have pandoc installed
 # Needs sudo to overwrite existing man pages
+
 # Convert all markdown files on /doc/rpc/ to man pages on /doc/rpc_man/
 [group('Development')]
 [group('Userland')]
 gen-manpages path="":
     @just check-command pandoc gen-manpages "https://pandoc.org/installing.html"
-    ./contrib/dist/gen_manpages.sh {{path}}
-
+    ./contrib/dist/gen_manpages.sh {{ path }}
 
 # Usage:
 #   just install                   # installs both florestad and floresta-cli
 #   just install florestad         # installs only florestad
 #   just install floresta-cli      # installs only floresta-cli
 #
+
 # Floresta recipe to help installing the binaries without versioning problems.
 [group('Build')]
 [group('Userland')]
 install bin="all":
-    if [ "{{bin}}" = "all" ]; then \
+    if [ "{{ bin }}" = "all" ]; then \
         cargo install --path bin/florestad --locked && \
         cargo install --path bin/floresta-cli --locked; \
-    elif [ "{{bin}}" = "florestad" ]; then \
+    elif [ "{{ bin }}" = "florestad" ]; then \
         cargo install --path bin/florestad --locked; \
-    elif [ "{{bin}}" = "floresta-cli" ]; then \
+    elif [ "{{ bin }}" = "floresta-cli" ]; then \
         cargo install --path bin/floresta-cli --locked; \
     else \
-        printf "Unknown binary: %s\n" "{{bin}}" >&2; \
+        printf "Unknown binary: %s\n" "{{ bin }}" >&2; \
         exit 1; \
     fi
 
-
 # Format code and run configured linters
-[group('Linting')]
 [group('Development')]
+[group('Linting')]
 lint:
     @just fmt
     @just doc-check
@@ -150,8 +150,8 @@ lint:
     @just test-functional-uv-fmt
 
 # Format code
-[group('Linting')]
 [group('Development')]
+[group('Linting')]
 fmt:
     cargo +nightly fmt --all
 
@@ -167,24 +167,24 @@ run-release:
     cargo run --release --bin florestad
 
 # Execute all tests, you can pass name to specify a package.
-[group('Testing')]
 [group('Development')]
+[group('Testing')]
 test name="":
-    @just _test-doc {{name}}
-    @just _test-unit {{name}}
+    @just _test-doc {{ name }}
+    @just _test-unit {{ name }}
     @just _test-wkspc
 
 # Execute doc tests
 [group('Testing')]
 [group('Utility')]
 _test-doc name="":
-    cargo test {{name}} --doc
+    cargo test {{ name }} --doc
 
 # Execute unit tests
 [group('Testing')]
 [group('Utility')]
 _test-unit name="":
-    cargo test --lib {{name}} -- --nocapture
+    cargo test --lib {{ name }} -- --nocapture
 
 # Execute workspace-related tests
 [group('Testing')]
@@ -195,12 +195,12 @@ _test-wkspc:
 # Execute tests/prepare.sh.
 [group('Testing')]
 test-functional-prepare arg="":
-    bash tests/prepare.sh {{arg}}
+    bash tests/prepare.sh {{ arg }}
 
 # Execute tests/run.sh
 [group('Testing')]
 test-functional-run arg="":
-    bash tests/run.sh {{arg}}
+    bash tests/run.sh {{ arg }}
 
 # Format and lint functional tests
 [group('Testing')]
@@ -225,4 +225,4 @@ bench:
 [group('Testing')]
 test-features arg="":
     cargo install cargo-hack --locked
-    ./contrib/feature_matrix.sh test {{arg}}
+    ./contrib/feature_matrix.sh test {{ arg }}
