@@ -24,20 +24,6 @@ To contribute a patch, the workflow is as follows:
   2. Create topic branch
   3. Commit patches
 
-### Development Tools
-
-We maintain support for a set of tools that might help a contributor such as.
-
-[`Just` in docs/](docs/justfile.md)
-
-[`Docker` in docs/](docs/docker.md)
-
-[`Nix` in docs/](docs/nix.md)
-
-`uv` - for running python script and managing its dependencies.
-
-`cargo` - the package manager for Rust projects. 
-
 ### Commits
 
 In general commits should be atomic and diffs should be easy to read.

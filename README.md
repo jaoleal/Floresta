@@ -39,7 +39,6 @@ Also, we maintain support for a set of tools that a developer might be familiar.
 
 `cargo` - the package manager for Rust projects. 
 
-
 ## Community
 
 If you want to discuss this project, you can join our Discord server [here](https://discord.gg/5Wj8fjjS93). If you want to disclose a security vulnerability, please email `Davidson Souza at me AT dlsouza DOT lol`, using the PGP key [`2C8E0F 836FD7D BBBB9E 9B2EF899 64EC3AB 22B2E3`](https://blog.dlsouza.lol/assets/gpg.asc).
