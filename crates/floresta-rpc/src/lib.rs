@@ -15,6 +15,7 @@ pub mod jsonrpc_client;
 
 pub mod rpc;
 pub mod rpc_types;
+pub mod json_rpc;
 
 // Those tests doesn't work on windowns
 // TODO (Davidson): work on windows?

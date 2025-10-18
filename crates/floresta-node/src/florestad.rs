@@ -68,8 +68,8 @@ use tracing_subscriber::Layer;
 
 use crate::config_file::ConfigFile;
 use crate::error::FlorestadError;
-#[cfg(feature = "json-rpc")]
-use crate::json_rpc;
+
+use crate::floresta_rpc;
 use crate::wallet_input::InitialWalletSetup;
 #[cfg(feature = "zmq-server")]
 use crate::zmq::ZMQServer;
@@ -513,7 +513,7 @@ impl Florestad {
         // JSON-RPC
         #[cfg(feature = "json-rpc")]
         {
-            let server = tokio::spawn(json_rpc::server::RpcImpl::create(
+            let server = tokio::spawn(floresta_rpc::server::RpcImpl::create(
                 blockchain_state.clone(),
                 wallet.clone(),
                 chain_provider.get_handle(),
