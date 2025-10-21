@@ -14,6 +14,7 @@
 pub mod jsonrpc_client;
 
 pub mod rpc;
+pub mod rpc_server;
 pub mod rpc_types;
 
 // Those tests doesn't work on windowns
