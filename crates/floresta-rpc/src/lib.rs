@@ -22,6 +22,7 @@ pub mod rpc_types;
 
 #[cfg(all(test, feature = "with-jsonrpc", not(target_os = "windows")))]
 mod tests {
+    use std::env;
     use std::fs;
     use std::net::TcpListener;
     use std::path::Path;
@@ -38,6 +39,7 @@ mod tests {
     use rcgen::CertifiedKey;
 
     use crate::jsonrpc_client::Client;
+    use corepc_node::Client as BitcoinClient;
     use crate::rpc::FlorestaRPC;
     use crate::rpc_types::GetBlockRes;
 
@@ -51,6 +53,28 @@ mod tests {
         }
     }
 
+    fn start_bitcoin_client() -> BitcoinClient {
+        let bitcoin_connection = get_bitcoin_connection();
+        let client = BitcoinClient::new(&bitcoin_connection);
+        client.check_expected_server_version().unwrap();
+        client
+    }
+    /// Here i prefer to use a popular and public node and in mainnet to return data for me.
+    /// 
+    /// 1. Its easy to setup and doesnt require for my machine to run another full node.
+    /// 2. Its reliable, public and easy to check data.
+    /// 3. Floresta components can be reused to give us more granular control over the node thats providing data.
+    /// 4. MUCH easier to maintain.
+    /// 
+    /// Its easy to extend this function to fallback into a local node if a env var set.
+    fn get_bitcoin_connection() -> String {
+        const PUBLIC: &str = "http://www.bitcoin-rpc.publicnode.com";
+        match env::var_os("FLORESTA_BITCOIN_URL") {
+            Some(val) => val.into_string().unwrap(),
+            None => PUBLIC.into(),
+        }
+
+    }
     /// A helper function for tests.
     ///
     /// This function will start a florestad process and return a client that can be used to
@@ -137,6 +161,11 @@ mod tests {
         sleep(Duration::from_millis(100));
 
         port
+    }
+    #[test]
+    fn hello_bitcoin() {
+        let _client = start_bitcoin_client();
+
     }
 
     #[test]

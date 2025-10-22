@@ -23,7 +23,7 @@ use super::res::GetTxOutProof;
 use super::res::JsonRpcError;
 use super::server::RpcChain;
 use super::server::RpcImpl;
-use crate::json_rpc::res::RescanConfidence;
+use crate::rpc_server::res::RescanConfidence;
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Struct helper for RpcGetTxOut
