@@ -21,11 +21,26 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 jsonrpc = { version = "0.18.0", features = ["minreq_http"], optional = true }
 clap = { version = "4.0.29", features = ["derive"], optional = true }
+miniscript = "12.3.5"
+tracing = "0.1.41"
+floresta-compact-filters = { path = "../floresta-compact-filters" }
+floresta-chain = { path = "../floresta-chain" }
+floresta-common = { path = "../floresta-common" }
+floresta-electrum = { path = "../floresta-electrum" }
+floresta-watch-only = { path = "../floresta-watch-only" }
+floresta-wire = { path = "../floresta-wire" }
+axum = "0.7"
+tokio = "1.48.0"
+tower-http = { version = "0.6.2", features = ["cors"] }
+corepc-node = {version = "0.10.0", features = ["29_0", "download"]}
 
 [features]
 default = ["with-jsonrpc"]
 with-jsonrpc = ["dep:jsonrpc"]
 clap = ["dep:clap"]
+
+[target.'cfg(target_env = "gnu")'.dependencies]
+libc = "0.2.169"
 
 [dev-dependencies]
 rand = "0.8.5"

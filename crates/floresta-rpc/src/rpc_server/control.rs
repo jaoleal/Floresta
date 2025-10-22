@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+#[cfg(target_env = "gnu")]
+use libc;
+
 use super::res::JsonRpcError;
 use super::server::RpcChain;
 use super::server::RpcImpl;

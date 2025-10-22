@@ -46,14 +46,14 @@ use super::res::ScriptPubKeyJson;
 use super::res::ScriptSigJson;
 use super::res::TxInJson;
 use super::res::TxOutJson;
-use crate::json_rpc::request::arg_parser::get_bool;
-use crate::json_rpc::request::arg_parser::get_hash;
-use crate::json_rpc::request::arg_parser::get_hashes_array;
-use crate::json_rpc::request::arg_parser::get_numeric;
-use crate::json_rpc::request::arg_parser::get_optional_field;
-use crate::json_rpc::request::arg_parser::get_string;
-use crate::json_rpc::request::RpcRequest;
-use crate::json_rpc::res::RescanConfidence;
+use crate::rpc_server::request::arg_parser::get_bool;
+use crate::rpc_server::request::arg_parser::get_hash;
+use crate::rpc_server::request::arg_parser::get_hashes_array;
+use crate::rpc_server::request::arg_parser::get_numeric;
+use crate::rpc_server::request::arg_parser::get_optional_field;
+use crate::rpc_server::request::arg_parser::get_string;
+use crate::rpc_server::request::RpcRequest;
+use crate::rpc_server::res::RescanConfidence;
 
 pub(super) struct InflightRpc {
     pub method: String,
