@@ -33,6 +33,7 @@ use floresta_common::try_and_log;
 use floresta_compact_filters::flat_filters_store::FlatFiltersStore;
 #[cfg(feature = "compact-filters")]
 use floresta_compact_filters::network_filters::NetworkFilters;
+use floresta_domain::mempool::MempoolBase;
 use floresta_electrum::electrum_protocol::ElectrumServer;
 use floresta_electrum::electrum_protocol::client_accept_loop;
 use floresta_mempool::Mempool;
@@ -356,11 +357,16 @@ impl Florestad {
         Ok(sock)
     }
 
-    /// Actually runs florestad, spawning all modules and waiting until
-    /// someone asks to stop.
+    /// Initializes the daemon and starts its background services.
     ///
-    /// This function will return an error if the configured data directory path is not an
-    /// **existing and writable directory**, or cannot be validated as such.
+    /// This loads the wallet and chain state, constructs the P2P and Electrum services and spawns
+    /// their asynchronous tasks. The method returns after startup completes and the services continue
+    /// running until a shutdown is requested.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data directory is invalid or if a required database, service,
+    /// listener or TLS configuration cannot be initialized.
     pub async fn start(&self) -> Result<(), FlorestadError> {
         let datadir: &Path = self.config.datadir.as_ref();
 
@@ -370,6 +376,8 @@ impl Florestad {
         info!("Loading watch-only wallet");
         let wallet = self.setup_wallet()?;
 
+        // Restore the validated chainstate from persistent storage.
+        // The `Arc` allows the P2P and API services to share the same chainstate.
         info!("Loading blockchain database");
         let blockchain_state = Arc::new(Self::load_chain_state(
             datadir,
@@ -427,13 +435,19 @@ impl Florestad {
 
         let kill_signal = self.stop_signal.clone();
 
-        // Chain Provider (p2p)
+        // Create a single in-memory mempool shared by the node and its peer tasks.
+        // The asynchronous mutex provides exclusive mutable access,
+        // while the `Arc` provides shared ownership.
+        let mempool: Arc<tokio::sync::Mutex<dyn MempoolBase>> = Arc::new(tokio::sync::Mutex::new(
+            Mempool::new(DEFAULT_MEMPOOL_MAX_SIZE_BYTES),
+        ));
+
+        // Construct the P2P node with shared access to the chain state and mempool so it can
+        // validate blocks and serve or broadcast unconfirmed transactions.
         let chain_provider = UtreexoNode::<_, RunningNode>::new(
             config,
             blockchain_state.clone(),
-            Arc::new(tokio::sync::Mutex::new(Mempool::new(
-                DEFAULT_MEMPOOL_MAX_SIZE_BYTES,
-            ))),
+            mempool,
             cfilters.clone(),
             kill_signal.clone(),
             AddressMan::new(None, &ReachableNetworks::SUPPORTED),
@@ -595,12 +609,13 @@ impl Florestad {
         // Electrum Server's main loop.
         task::spawn(electrum_server.main_loop());
 
-        // Chain provider
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
         let mut recv = self.stop_notify.lock().unwrap();
         *recv = Some(receiver);
 
+        // Spawn the primary node task, which manages peer connections, chain synchronization,
+        // block processing and transaction relay.
         task::spawn(chain_provider.run(sender));
 
         // Metrics
