@@ -295,6 +295,16 @@ where
         Ok(true)
     }
 
+    /// Runs the P2P node through initial synchronization and normal operation.
+    ///
+    /// The node initializes its peers, selects the best header chain, optionally starts historical
+    /// block backfill and catches the validated chain state up to the network tip. It then enters
+    /// the [`RunningNode`] event loop, where it processes peer and user messages and performs
+    /// periodic maintenance until shutdown is requested.
+    ///
+    /// On an orderly shutdown, the node closes its peer connections, persists its state and uses
+    /// `stop_signal` to notify the owner that shutdown is complete. If startup terminates early,
+    /// the sender is dropped and the corresponding receiver is closed.
     pub async fn run(mut self, stop_signal: tokio::sync::oneshot::Sender<()>) {
         try_and_warn!(self.init_peers());
 

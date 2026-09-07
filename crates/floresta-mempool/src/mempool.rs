@@ -27,6 +27,7 @@ use floresta_chain::pruned_utreexo::consensus::Consensus;
 use floresta_domain::mempool::MempoolBase;
 use floresta_domain::mempool::MempoolError;
 use tracing::debug;
+use tracing::info;
 
 /// A short transaction id that we use to identify transactions in the mempool.
 ///
@@ -193,31 +194,36 @@ impl MempoolBase for Mempool {
     ///  - If either vIn or vOut are empty
     ///  - If any script is larger than the maximum allowed size
     fn accept_to_mempool(&mut self, transaction: Transaction) -> Result<(), MempoolError> {
-        debug!(
-            "Accepting {} to mempool {:?}",
-            transaction.compute_txid(),
-            self.transactions
-        );
+        let txid = transaction.compute_txid();
+        debug!("Received transaction for mempool admission txid={txid}");
+
+        let log_rejection = |error: MempoolError| {
+            debug!("Transaction rejected from mempool txid={txid} reason={error}");
+            error
+        };
+
+        let short_txid = self.hasher.hash_one(txid);
+
+        // Duplicate submissions are successful no-ops, even when the mempool is full.
+        if self.transactions.contains_key(&short_txid) {
+            debug!("Transaction already present in mempool txid={txid}");
+            return Ok(());
+        }
 
         // Make sure our mempool has space
         let tx_size = transaction.total_size();
         if self.mempool_size + tx_size > self.max_mempool_size {
-            return Err(MempoolError::FullMempool);
-        }
-
-        let short_txid = self.hasher.hash_one(transaction.compute_txid());
-
-        // Checks if we don't have this tx already
-        if self.transactions.contains_key(&short_txid) {
-            return Ok(());
+            return Err(log_rejection(MempoolError::FullMempool));
         }
 
         // Perform context-free consensus checks
         Consensus::check_transaction_context_free(&transaction)
-            .map_err(MempoolError::ConsensusValidation)?;
+            .map_err(MempoolError::ConsensusValidation)
+            .map_err(&log_rejection)?;
 
         // Make sure transaction won't conflict with other mempool transaction
-        self.check_for_conflicts(&transaction)?;
+        self.check_for_conflicts(&transaction)
+            .map_err(&log_rejection)?;
 
         // List dependants for this transaction
         let depends = self.find_mempool_depends(&transaction);
@@ -237,6 +243,7 @@ impl MempoolBase for Mempool {
             },
         );
         self.mempool_size += tx_size;
+        debug!("Transaction accepted into mempool txid={txid} transaction_size={tx_size}");
 
         Ok(())
     }
@@ -251,6 +258,8 @@ impl Mempool {
         let d = rand::random();
 
         let hasher = ahash::RandomState::with_seeds(a, b, c, d);
+
+        info!("Mempool initialized max_size_bytes={max_mempool_size}");
 
         Self {
             transactions: HashMap::new(),
@@ -486,6 +495,25 @@ mod tests {
         }
 
         assert_eq!(mempool.transactions.len(), len);
+    }
+
+    #[test]
+    fn test_duplicate_is_accepted_when_mempool_is_full() {
+        let transaction = build_transactions(1, false)
+            .pop()
+            .expect("expected one transaction");
+        let transaction_size = transaction.total_size();
+        let mut mempool = Mempool::new(transaction_size);
+
+        mempool
+            .accept_to_mempool(transaction.clone())
+            .expect("first submission should fill the mempool");
+        mempool
+            .accept_to_mempool(transaction)
+            .expect("duplicate submission should be a successful no-op");
+
+        assert_eq!(mempool.transactions.len(), 1);
+        assert_eq!(mempool.mempool_size, transaction_size);
     }
 
     #[test]
