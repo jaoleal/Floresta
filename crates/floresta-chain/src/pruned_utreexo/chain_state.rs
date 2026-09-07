@@ -428,17 +428,13 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
         ))
     }
 
-    /// Changes the acc we are using to validate blocks.
-    fn reorg_acc(&self, fork_point: &BlockHeader) -> Result<(), BlockchainError> {
+    /// Returns the acc we must validate from after reorging to `fork_point`.
+    fn reorg_acc(&self, fork_point: &BlockHeader) -> Result<Stump, BlockchainError> {
         let height = self
             .get_block_height(&fork_point.block_hash())?
             .ok_or(BlockchainError::BlockNotPresent)?;
 
-        let acc = self.get_roots_for_block(height)?.unwrap_or_default();
-        let mut inner = write_lock!(self);
-        inner.acc = acc;
-
-        Ok(())
+        Ok(self.get_roots_for_block(height)?.unwrap_or_default())
     }
 
     // This method should only be called after we validate the new branch
@@ -451,19 +447,26 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
 
         let validation_index = self.get_last_valid_block(&new_tip)?;
         let depth = self.get_chain_depth(&new_tip)?;
+        let acc = self.reorg_acc(&fork_point)?;
 
-        self.change_active_chain(&new_tip, validation_index, depth);
-        self.reorg_acc(&fork_point)?;
+        self.change_active_chain(&new_tip, validation_index, depth, acc);
 
         Ok(())
     }
 
     /// Changes the active chain to the new branch during a reorg
-    fn change_active_chain(&self, new_tip: &BlockHeader, last_valid: BlockHash, depth: u32) {
+    fn change_active_chain(
+        &self,
+        new_tip: &BlockHeader,
+        last_valid: BlockHash,
+        depth: u32,
+        acc: Stump,
+    ) {
         let mut inner = self.inner.write();
         inner.best_block.best_block = new_tip.block_hash();
         inner.best_block.validation_index = last_valid;
         inner.best_block.depth = depth;
+        inner.acc = acc;
     }
 
     /// Grabs the last block we validated in this branch. We don't validate a fork, unless it
