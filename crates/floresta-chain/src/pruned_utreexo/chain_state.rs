@@ -1554,6 +1554,9 @@ mod test {
     use std::format;
     use std::fs::File;
     use std::io::Cursor;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::Ordering;
+    use std::thread;
     use std::vec::Vec;
 
     use bitcoin::Block;
@@ -2387,5 +2390,80 @@ mod test {
         assert_eq!(work.to_string_hex(), expected_hex_string);
         assert_eq!(fork_work, work);
         assert_eq!(work, expected_work);
+    }
+    fn connect_reorg_chains(
+        chain: &ChainState<FlatChainStore>,
+        short_chain: &[Block],
+        long_chain: &[Block],
+    ) -> HashMap<BlockHash, Stump> {
+        let mut accs = HashMap::new();
+        accs.insert(chain.get_block_hash(0).unwrap(), chain.acc());
+
+        for block in short_chain {
+            chain.accept_header(block.header).unwrap();
+            chain
+                .connect_block(block, Proof::default(), HashMap::new(), Vec::new())
+                .unwrap();
+            accs.insert(block.block_hash(), chain.acc());
+        }
+
+        for block in long_chain {
+            chain.accept_header(block.header).unwrap();
+        }
+
+        for block in long_chain {
+            chain
+                .connect_block(block, Proof::default(), HashMap::new(), Vec::new())
+                .unwrap();
+            accs.insert(block.block_hash(), chain.acc());
+        }
+
+        accs
+    }
+
+    #[test]
+    fn reorg_publishes_the_validation_index_and_the_accumulator_together() {
+        let json_blocks = include_str!("../../testdata/test_reorg.json");
+        let blocks: Vec<Vec<&str>> = serde_json::from_str(json_blocks).unwrap();
+
+        let parse_blocks = |blocks: &[&str]| {
+            blocks
+                .iter()
+                .map(|s| deserialize_hex(s).unwrap())
+                .collect::<Vec<Block>>()
+        };
+
+        let short_chain = parse_blocks(&blocks[0]);
+        let long_chain = parse_blocks(&blocks[1]);
+
+        let reference = setup_test_chain(Network::Regtest, AssumeValidArg::Hardcoded, None);
+        let accs = connect_reorg_chains(&reference, &short_chain, &long_chain);
+
+        let chain = setup_test_chain(Network::Regtest, AssumeValidArg::Hardcoded, None);
+        let done = AtomicBool::new(false);
+
+        thread::scope(|scope| {
+            for _ in 0..2 {
+                scope.spawn(|| {
+                    while !done.load(Ordering::Acquire) {
+                        let (validation_index, acc) = {
+                            let inner = chain.inner.read();
+                            (inner.best_block.validation_index, inner.acc.clone())
+                        };
+
+                        assert_eq!(
+                            accs.get(&validation_index),
+                            Some(&acc),
+                            "the accumulator must be the one left by block {validation_index}",
+                        );
+                    }
+                });
+            }
+
+            connect_reorg_chains(&chain, &short_chain, &long_chain);
+            done.store(true, Ordering::Release);
+        });
+
+        assert_eq!(chain.get_validation_index().unwrap(), 16);
     }
 }
