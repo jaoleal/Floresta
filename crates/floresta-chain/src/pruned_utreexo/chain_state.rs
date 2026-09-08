@@ -428,17 +428,13 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
         ))
     }
 
-    /// Changes the acc we are using to validate blocks.
-    fn reorg_acc(&self, fork_point: &BlockHeader) -> Result<(), BlockchainError> {
+    /// Returns the acc we must validate from after reorging to `fork_point`.
+    fn reorg_acc(&self, fork_point: &BlockHeader) -> Result<Stump, BlockchainError> {
         let height = self
             .get_block_height(&fork_point.block_hash())?
             .ok_or(BlockchainError::BlockNotPresent)?;
 
-        let acc = self.get_roots_for_block(height)?.unwrap_or_default();
-        let mut inner = write_lock!(self);
-        inner.acc = acc;
-
-        Ok(())
+        Ok(self.get_roots_for_block(height)?.unwrap_or_default())
     }
 
     // This method should only be called after we validate the new branch
@@ -451,19 +447,26 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
 
         let validation_index = self.get_last_valid_block(&new_tip)?;
         let depth = self.get_chain_depth(&new_tip)?;
+        let acc = self.reorg_acc(&fork_point)?;
 
-        self.change_active_chain(&new_tip, validation_index, depth);
-        self.reorg_acc(&fork_point)?;
+        self.change_active_chain(&new_tip, validation_index, depth, acc);
 
         Ok(())
     }
 
     /// Changes the active chain to the new branch during a reorg
-    fn change_active_chain(&self, new_tip: &BlockHeader, last_valid: BlockHash, depth: u32) {
+    fn change_active_chain(
+        &self,
+        new_tip: &BlockHeader,
+        last_valid: BlockHash,
+        depth: u32,
+        acc: Stump,
+    ) {
         let mut inner = self.inner.write();
         inner.best_block.best_block = new_tip.block_hash();
         inner.best_block.validation_index = last_valid;
         inner.best_block.depth = depth;
+        inner.acc = acc;
     }
 
     /// Grabs the last block we validated in this branch. We don't validate a fork, unless it
@@ -1554,6 +1557,9 @@ mod test {
     use std::format;
     use std::fs::File;
     use std::io::Cursor;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::Ordering;
+    use std::thread;
     use std::vec::Vec;
 
     use bitcoin::Block;
@@ -2387,5 +2393,80 @@ mod test {
         assert_eq!(work.to_string_hex(), expected_hex_string);
         assert_eq!(fork_work, work);
         assert_eq!(work, expected_work);
+    }
+    fn connect_reorg_chains(
+        chain: &ChainState<FlatChainStore>,
+        short_chain: &[Block],
+        long_chain: &[Block],
+    ) -> HashMap<BlockHash, Stump> {
+        let mut accs = HashMap::new();
+        accs.insert(chain.get_block_hash(0).unwrap(), chain.acc());
+
+        for block in short_chain {
+            chain.accept_header(block.header).unwrap();
+            chain
+                .connect_block(block, Proof::default(), HashMap::new(), Vec::new())
+                .unwrap();
+            accs.insert(block.block_hash(), chain.acc());
+        }
+
+        for block in long_chain {
+            chain.accept_header(block.header).unwrap();
+        }
+
+        for block in long_chain {
+            chain
+                .connect_block(block, Proof::default(), HashMap::new(), Vec::new())
+                .unwrap();
+            accs.insert(block.block_hash(), chain.acc());
+        }
+
+        accs
+    }
+
+    #[test]
+    fn reorg_publishes_the_validation_index_and_the_accumulator_together() {
+        let json_blocks = include_str!("../../testdata/test_reorg.json");
+        let blocks: Vec<Vec<&str>> = serde_json::from_str(json_blocks).unwrap();
+
+        let parse_blocks = |blocks: &[&str]| {
+            blocks
+                .iter()
+                .map(|s| deserialize_hex(s).unwrap())
+                .collect::<Vec<Block>>()
+        };
+
+        let short_chain = parse_blocks(&blocks[0]);
+        let long_chain = parse_blocks(&blocks[1]);
+
+        let reference = setup_test_chain(Network::Regtest, AssumeValidArg::Hardcoded, None);
+        let accs = connect_reorg_chains(&reference, &short_chain, &long_chain);
+
+        let chain = setup_test_chain(Network::Regtest, AssumeValidArg::Hardcoded, None);
+        let done = AtomicBool::new(false);
+
+        thread::scope(|scope| {
+            for _ in 0..2 {
+                scope.spawn(|| {
+                    while !done.load(Ordering::Acquire) {
+                        let (validation_index, acc) = {
+                            let inner = chain.inner.read();
+                            (inner.best_block.validation_index, inner.acc.clone())
+                        };
+
+                        assert_eq!(
+                            accs.get(&validation_index),
+                            Some(&acc),
+                            "the accumulator must be the one left by block {validation_index}",
+                        );
+                    }
+                });
+            }
+
+            connect_reorg_chains(&chain, &short_chain, &long_chain);
+            done.store(true, Ordering::Release);
+        });
+
+        assert_eq!(chain.get_validation_index().unwrap(), 16);
     }
 }
