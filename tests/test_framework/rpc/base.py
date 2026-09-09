@@ -116,14 +116,22 @@ class BaseRPC(ABC):
         return kwargs
 
     def build_request(
-        self, method: str, params: List[Any] = None, request_id: str = "test"
+        self,
+        method: str,
+        params: List[Any] = None,
+        request_id: str = "test",
+        jsonrpc_version: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Build the full request dictionary for a JSON-RPC call.
+
+        `jsonrpc_version` overrides the version this client advertises by default,
+        which is needed to send the very same request to daemons that disagree on
+        the default version.
         """
         request = self._build_request_kwargs()
         payload = {
-            "jsonrpc": self._jsonrpc_version,
+            "jsonrpc": jsonrpc_version or self._jsonrpc_version,
             "id": request_id,
             "method": method,
         }
@@ -141,10 +149,14 @@ class BaseRPC(ABC):
         return {"status_code": response.status_code, "body": response.json()}
 
     def noraise_request(
-        self, method: str, params: List[Any] = None, request_id: str = "test"
+        self,
+        method: str,
+        params: List[Any] = None,
+        request_id: str = "test",
+        jsonrpc_version: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send a standard JSON-RPC request and return the parsed response (no raise)."""
-        request = self.build_request(method, params, request_id)
+        request = self.build_request(method, params, request_id, jsonrpc_version)
         return self._send_request(request)
 
     def noraise_raw_request(
@@ -442,9 +454,11 @@ class BaseRPC(ABC):
 
         return resp
 
-    def ensure_rpc_call_success(self, method, params=None, request_id="test"):
+    def ensure_rpc_call_success(
+        self, method, params=None, request_id="test", jsonrpc_version=None
+    ):
         """Assert that a JSON-RPC response indicates success (HTTP 200, no error)."""
-        resp = self.noraise_request(method, params, request_id)
+        resp = self.noraise_request(method, params, request_id, jsonrpc_version)
         self.assert_rpc_success(resp)
 
         return resp
@@ -480,9 +494,10 @@ class BaseRPC(ABC):
         expected_status_code=None,
         expected_rpcerror_code=None,
         expected_message=None,
+        jsonrpc_version=None,
     ):
         """Assert that a JSON-RPC response indicates an error (non-200, error present)."""
-        resp = self.noraise_request(method, params, request_id)
+        resp = self.noraise_request(method, params, request_id, jsonrpc_version)
         self.assert_rpc_error(
             resp, expected_status_code, expected_rpcerror_code, expected_message
         )
