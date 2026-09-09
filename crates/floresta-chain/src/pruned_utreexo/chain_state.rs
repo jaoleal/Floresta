@@ -641,13 +641,10 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
     fn get_roots_for_block(&self, height: u32) -> Result<Option<Stump>, BlockchainError> {
         let acc = { write_lock!(self).chainstore.load_roots_for_block(height)? };
 
-        let Some(acc) = acc else {
-            return Ok(None);
-        };
-
-        let mut acc = acc.as_slice();
-        let acc = Stump::deserialize(&mut acc)?;
-        Ok(Some(acc))
+        acc.map(|acc_bytes| {
+            Stump::deserialize(acc_bytes.as_slice()).map_err(BlockchainError::AccumulatorError)
+        })
+        .transpose()
     }
 
     /// Re-indexes the chain if we find ourselves in an undefined state
